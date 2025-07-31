@@ -24,21 +24,8 @@ fi
 
 GENPASS="$(generate_random_password)"
 
-echo "[INFO] Downloading hysteria2 binary..."
-wget -O /usr/local/bin/hysteria https://download.hysteria.network/app/latest/hysteria-linux-amd64 --no-check-certificate
-chmod +x /usr/local/bin/hysteria
-
-mkdir -p /etc/hysteria/
-
-echo "[INFO] Generating self-signed TLS certificate..."
-openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
-  -keyout /etc/hysteria/server.key \
-  -out /etc/hysteria/server.crt \
-  -subj "/CN=bing.com" \
-  -days 36500
-
-echo "[INFO] Writing hysteria config..."
-cat > /etc/hysteria/config.yaml <<EOF
+echo_hysteria_config_yaml() {
+  cat << EOF
 listen: :$PORT
 
 tls:
@@ -64,32 +51,50 @@ disableCongestionControl: true
 alpn:
   - h3
 EOF
+}
 
-echo "[INFO] Writing OpenRC service script..."
-cat > /etc/init.d/hysteria <<'EOF'
+echo_hysteria_autoStart() {
+  cat << EOF
 #!/sbin/openrc-run
 
 name="hysteria"
 command="/usr/local/bin/hysteria"
 command_args="server --config /etc/hysteria/config.yaml"
-pidfile="/var/run/${name}.pid"
+pidfile="/var/run/\${name}.pid"
 command_background="yes"
 
 depend() {
     need networking
 }
 EOF
+}
 
+echo "[INFO] Downloading hysteria2 binary..."
+wget -O /usr/local/bin/hysteria https://download.hysteria.network/app/latest/hysteria-linux-amd64 --no-check-certificate
+chmod +x /usr/local/bin/hysteria
+
+mkdir -p /etc/hysteria/
+
+echo "[INFO] Generating self-signed TLS certificate..."
+openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
+  -keyout /etc/hysteria/server.key \
+  -out /etc/hysteria/server.crt \
+  -subj "/CN=bing.com" \
+  -days 36500
+
+echo "[INFO] Writing hysteria config..."
+echo_hysteria_config_yaml > /etc/hysteria/config.yaml
+
+echo "[INFO] Writing OpenRC service script..."
+echo_hysteria_autoStart > /etc/init.d/hysteria
 chmod +x /etc/init.d/hysteria
 rc-update add hysteria
 
 echo "[INFO] Starting hysteria service..."
 service hysteria start
 
-# 获取服务器 IP
 SERVER_IP=$(curl -s https://api64.ipify.org || curl -s https://ipinfo.io/ip)
 
-# 判断是否是 IPv6 地址，若是则加上方括号
 if echo "$SERVER_IP" | grep -q ":"; then
   SERVER_IP="[$SERVER_IP]"
 fi
@@ -107,7 +112,7 @@ echo "hysteria2://$GENPASS@$SERVER_IP:$PORT?alpn=h3&insecure=1#hysteria2"
 echo "------------------------------------------------------------------------"
 
 echo "[INFO] Setting IPv6 DNS servers..."
-cat > /etc/resolv.conf <<'EOF'
+cat > /etc/resolv.conf << EOF
 nameserver 2a00:1098:2c::1
 nameserver 2a00:1098:2b::1
 nameserver 2a01:4f8:c2c:123f::1
