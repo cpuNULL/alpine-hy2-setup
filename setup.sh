@@ -66,6 +66,7 @@ command_background="yes"
 depend() {
     need networking
 }
+
 EOF
 }
 
