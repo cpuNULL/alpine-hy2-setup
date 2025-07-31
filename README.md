@@ -6,5 +6,3 @@ Auto-install Hysteria2 and set IPv6 DNS on Alpine
 ## 使用方法
 ```sh
 wget -O - https://raw.githubusercontent.com/cpuNULL/alpine-hy2-setup/main/setup.sh | sh
-
-
