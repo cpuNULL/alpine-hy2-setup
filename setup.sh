@@ -24,8 +24,21 @@ fi
 
 GENPASS="$(generate_random_password)"
 
-echo_hysteria_config_yaml() {
-  cat << EOF
+echo "[INFO] Downloading hysteria2 binary..."
+wget -O /usr/local/bin/hysteria https://download.hysteria.network/app/latest/hysteria-linux-amd64 --no-check-certificate
+chmod +x /usr/local/bin/hysteria
+
+mkdir -p /etc/hysteria/
+
+echo "[INFO] Generating self-signed TLS certificate..."
+openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
+  -keyout /etc/hysteria/server.key \
+  -out /etc/hysteria/server.crt \
+  -subj "/CN=bing.com" \
+  -days 36500
+
+echo "[INFO] Writing hysteria config..."
+cat > /etc/hysteria/config.yaml <<EOF
 listen: :$PORT
 
 tls:
@@ -51,10 +64,9 @@ disableCongestionControl: true
 alpn:
   - h3
 EOF
-}
 
-echo_hysteria_autoStart(){
-  cat << 'EOF'
+echo "[INFO] Writing OpenRC service script..."
+cat > /etc/init.d/hysteria <<'EOF'
 #!/sbin/openrc-run
 
 name="hysteria"
@@ -67,26 +79,7 @@ depend() {
     need networking
 }
 EOF
-}
 
-echo "[INFO] Downloading hysteria2 binary..."
-wget -O /usr/local/bin/hysteria https://download.hysteria.network/app/latest/hysteria-linux-amd64 --no-check-certificate
-chmod +x /usr/local/bin/hysteria
-
-mkdir -p /etc/hysteria/
-
-echo "[INFO] Generating self-signed TLS certificate..."
-openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
-  -keyout /etc/hysteria/server.key \
-  -out /etc/hysteria/server.crt \
-  -subj "/CN=bing.com" \
-  -days 36500
-
-echo "[INFO] Writing hysteria config..."
-echo_hysteria_config_yaml > /etc/hysteria/config.yaml
-
-echo "[INFO] Writing OpenRC service script..."
-echo_hysteria_autoStart > /etc/init.d/hysteria
 chmod +x /etc/init.d/hysteria
 rc-update add hysteria
 
