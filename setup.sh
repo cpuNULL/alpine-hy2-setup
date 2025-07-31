@@ -54,13 +54,13 @@ EOF
 }
 
 echo_hysteria_autoStart(){
-  cat << EOF
+  cat << 'EOF'
 #!/sbin/openrc-run
 
 name="hysteria"
 command="/usr/local/bin/hysteria"
 command_args="server --config /etc/hysteria/config.yaml"
-pidfile="/var/run/\${name}.pid"
+pidfile="/var/run/${name}.pid"
 command_background="yes"
 
 depend() {
@@ -107,8 +107,8 @@ echo "📎 客户端链接（可复制使用）:"
 echo "hysteria2://$GENPASS@$SERVER_IP:$PORT?alpn=h3&insecure=1#hysteria2"
 echo "------------------------------------------------------------------------"
 
-echo "[INFO] Updating /etc/resolv.conf with IPv6 DNS..."
-cat > /etc/resolv.conf <<EOF
+echo "[INFO] Setting IPv6 DNS servers..."
+cat > /etc/resolv.conf <<'EOF'
 nameserver 2a00:1098:2c::1
 nameserver 2a00:1098:2b::1
 nameserver 2a01:4f8:c2c:123f::1
