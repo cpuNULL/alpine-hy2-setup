@@ -1,9 +1,12 @@
 #!/bin/bash
 
-apk add --no-cache wget curl git openssh openssl openrc
+set -e
+
+apk add --no-cache wget curl openssl openrc
 
 generate_random_password() {
-  dd if=/dev/urandom bs=18 count=1 status=none | base64
+  # 生成随机密码，过滤掉/ + = @ 等特殊字符，避免协议链接出错
+  dd if=/dev/urandom bs=18 count=1 status=none | base64 | tr -d '/+=@'
 }
 
 generate_random_port() {
@@ -17,13 +20,6 @@ echo_hysteria_config_yaml() {
   cat << EOF
 listen: :$PORT
 
-#有域名，使用CA证书
-#acme:
-#  domains:
-#    - test.heybro.bid #你的域名，需要先解析到服务器ip
-#  email: xxx@gmail.com
-
-#使用自签名证书
 tls:
   cert: /etc/hysteria/server.crt
   key: /etc/hysteria/server.key
@@ -39,9 +35,9 @@ masquerade:
     rewriteHost: true
 
 maxConn: 0
-maxStreams: 512
-recvWindowConn: 16777216
-recvWindow: 6291456
+maxStreams: 1024
+recvWindowConn: 33554432   # 32MB，更大接收窗口连接数
+recvWindow: 12582912       # 12MB，更大接收窗口
 disableMTUDiscovery: true
 disableCongestionControl: true
 alpn:
@@ -49,7 +45,7 @@ alpn:
 EOF
 }
 
-echo_hysteria_autoStart(){
+echo_hysteria_autoStart() {
   cat << EOF
 #!/sbin/openrc-run
 
@@ -63,34 +59,34 @@ pidfile="/var/run/\${name}.pid"
 command_background="yes"
 
 depend() {
-        need networking
+    need networking
 }
 
 EOF
 }
 
-echo "[INFO] Downloading hysteria binary..."
+echo "[INFO] 下载 hysteria 二进制文件..."
 wget -O /usr/local/bin/hysteria https://download.hysteria.network/app/latest/hysteria-linux-amd64 --no-check-certificate
 chmod +x /usr/local/bin/hysteria
 
 mkdir -p /etc/hysteria/
 
-echo "[INFO] Generating self-signed TLS certificate..."
+echo "[INFO] 生成自签名 TLS 证书..."
 openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
   -keyout /etc/hysteria/server.key \
   -out /etc/hysteria/server.crt \
   -subj "/CN=bing.com" \
   -days 36500
 
-echo "[INFO] Writing hysteria config..."
+echo "[INFO] 写入 hysteria 配置..."
 echo_hysteria_config_yaml > /etc/hysteria/config.yaml
 
-echo "[INFO] Writing OpenRC service script..."
+echo "[INFO] 写入 OpenRC 服务脚本..."
 echo_hysteria_autoStart > /etc/init.d/hysteria
 chmod +x /etc/init.d/hysteria
 rc-update add hysteria
 
-echo "[INFO] Starting hysteria service..."
+echo "[INFO] 启动 hysteria 服务..."
 service hysteria start
 
 # 获取公网 IP
@@ -102,7 +98,7 @@ if echo "$SERVER_IP" | grep -q ":"; then
 fi
 
 echo "------------------------------------------------------------------------"
-echo "hysteria2 已安装完成"
+echo "✅ hysteria2 安装完成"
 echo "监听端口： $PORT"
 echo "密码： $GENPASS"
 echo "配置文件：/etc/hysteria/config.yaml"
@@ -110,8 +106,8 @@ echo "服务已随系统自动启动"
 echo "查看状态：service hysteria status"
 echo "重启服务：service hysteria restart"
 echo "------------------------------------------------------------------------"
-echo "客户端链接（直接复制使用）："
-echo "hysteria2://$GENPASS@$SERVER_IP:$PORT?alpn=h3&insecure=1#hysteria2"
+echo "客户端链接（复制即可使用）："
+echo "hysteria2://$GENPASS@$SERVER_IP:$PORT?alpn=h3&insecure=1&sni=bing.com#hysteria2"
 echo "------------------------------------------------------------------------"
 
 echo "[INFO] 设置 IPv6 DNS 服务器..."
