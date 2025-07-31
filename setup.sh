@@ -86,7 +86,13 @@ rc-update add hysteria
 echo "[INFO] Starting hysteria service..."
 service hysteria start
 
+# 获取服务器 IP
 SERVER_IP=$(curl -s https://api64.ipify.org || curl -s https://ipinfo.io/ip)
+
+# 判断是否是 IPv6 地址，若是则加上方括号
+if echo "$SERVER_IP" | grep -q ":"; then
+  SERVER_IP="[$SERVER_IP]"
+fi
 
 echo "------------------------------------------------------------------------"
 echo "✅ hysteria2 已安装完成"
